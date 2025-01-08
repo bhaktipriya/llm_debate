@@ -5,8 +5,8 @@ exp_dir=./exp/minimal
 mkdir -p $exp_dir
 
 # using all gpt-4-turbo for this minimal example
-model=gpt-4-1106-preview
-model_judge=gpt-4-1106-preview
+model=gpt-4o-mini-2024-07-18
+model_judge=gpt-4o-mini-2024-07-18
 
 # minimal example to reduce compute costs so using BoN=1 and only 10 questions
 # if you want to run the full experiment, use BoN=16, temperature=0.8 and limit=47 (see run_figure1.sh)

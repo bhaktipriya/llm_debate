@@ -36,7 +36,9 @@ def price_per_token(model_id: str) -> tuple[float, float]:
     """
     Returns the (input token, output token) price for the given model id.
     """
-    if model_id == "gpt-4-1106-preview":
+    if model_id == "gpt-4o-mini-2024-07-18":
+        prices = 0.150, 0.6
+    elif model_id == "gpt-4-1106-preview":
         prices = 0.01, 0.03
     elif model_id == "gpt-3.5-turbo-1106":
         prices = 0.001, 0.002
@@ -277,6 +279,7 @@ class OpenAIModel(ModelAPIProtocol):
 
 _GPT_4_MODELS = [
     "gpt-4",
+    "gpt-4o-mini-2024-07-18",
     "gpt-4-0314",
     "gpt-4-0613",
     "gpt-4-32k",
@@ -311,6 +314,7 @@ class OpenAIChatModel(OpenAIModel):
             "Authorization": f"Bearer {openai.api_key}",
             "OpenAI-Organization": self.organization,
         }
+
         data = {
             "model": model_id,
             "messages": [{"role": "user", "content": "Say 1"}],
