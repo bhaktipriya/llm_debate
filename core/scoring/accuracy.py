@@ -15,7 +15,7 @@ LOGGER = logging.getLogger(__name__)
 
 def find_answer(text, letter):
     pattern = re.compile(
-        f"^(?:Final )?Answer: (<{letter}>|{letter})(?:\n|$)", re.MULTILINE
+        f"^(?:Final answer: )?Answer:\s?(<{letter}>|{letter})(?:\n|$)", re.MULTILINE
     )
     matches = pattern.findall(text)
     found_match = len(matches) > 0
@@ -46,6 +46,7 @@ def find_inconclusive(text):
     )
     matches = pattern.findall(text)
     found_match = len(matches) > 0
+    print("Bhakti unknown", matches)
     return found_match
 
 
@@ -88,8 +89,12 @@ def func_correct_ab(judgement, swap=False, debug=False):
             return True if not swap else False
         elif find_answer(judgement, "B"):
             return False if not swap else True
+        elif find_answer(judgement, "Tie"):
+            print("Bhakti this is tie")
+            return "Tie"
         elif find_inconclusive(judgement):
-            return False
+            print("Bhakti this is unknown")
+            return "Unknown"
         else:
             if debug:
                 print(judgement)
@@ -107,7 +112,6 @@ def func_correct_ab(judgement, swap=False, debug=False):
         else:
             return "Unknown"
 
-
 def fix_df_nvotes(df):
     # TODO remove temporary fix for broken data in future
     if "complete_judge" not in df.columns and "complete_judge1" in df.columns:
@@ -121,28 +125,22 @@ def fix_df_nvotes(df):
 def get_accuracy(df, swap, debug=False, n_votes=1, verbose=False):
     if not isinstance(df, pd.DataFrame):
         df = pd.read_csv(df, encoding="utf-8")
-
     full = len(df)
     correct_columns = []
-
     df = fix_df_nvotes(df)
-
     for n_vote in range(n_votes):
         n_vote = n_vote if n_vote > 0 else ""
         complete_column = f"complete_judge{n_vote}"
         judge_column = f"answer_judge{n_vote}"
         correct_column = f"correct{n_vote}"
         correct_columns.append(correct_column)
-
         df = get_complete_rows(df, complete_column)
         df[correct_column] = df[judge_column].apply(
             func_correct_ab, swap=swap, debug=debug
         )
-
         if verbose:
             accuracy = (df[correct_column] == True).sum() / full
             print(f"Accuracy {n_vote}: {accuracy}")
-
     df_tmp = df.copy()
     df_tmp["correct_true_count"] = df_tmp[correct_columns].apply(
         lambda row: (row == True).sum(), axis=1
@@ -150,17 +148,25 @@ def get_accuracy(df, swap, debug=False, n_votes=1, verbose=False):
     df_tmp["correct_false_count"] = df_tmp[correct_columns].apply(
         lambda row: (row == False).sum(), axis=1
     )
+    df_tmp["correct_tie_count"] = df_tmp[correct_columns].apply(
+        lambda row: (row == "Tie").sum(), axis=1
+    )
+    df_tmp["correct_unknown_count"] = df_tmp[correct_columns].apply(
+        lambda row: (row == "Unknown").sum(), axis=1
+    )
     df_tmp["correct_voted"] = (
         df_tmp["correct_true_count"] > df_tmp["correct_false_count"]
     )
-    # count_unknown = (df_tmp["correct"] == "Unknown").sum()
-    count_unknown = (df_tmp[correct_columns] == "Unknown").sum().sum()
-
+    count_unknown = df_tmp["correct_unknown_count"].sum()
+    count_tie = df_tmp["correct_tie_count"].sum()
+    count_tie_percent = count_tie/full
     accuracy = (df_tmp["correct_voted"] == True).sum() / full
     accuracy_N = df_tmp.groupby("question")["correct_voted"].all().mean()
-
-    return accuracy, accuracy_N, count_unknown, full, df
-
+    
+    print(f"Unknown count: {count_unknown}")
+    print(f"Tie count: {count_tie}")
+    print(f"Tie count percent: {count_tie_percent}")
+    return accuracy, accuracy_N, count_unknown, count_tie, full, df
 
 def score_file(
     filename: Path,
@@ -174,14 +180,14 @@ def score_file(
     debug: bool = False,
     n_votes: int = 1,
 ):
-    accuracy, accuracy_N, count_unknown, total, df = get_accuracy(
+    accuracy, accuracy_N, count_unknown, count_tie, full, df = get_accuracy(
         filename, swap, debug=debug, n_votes=n_votes, verbose=verbose
     )
-    unknown_proportion = 100 * count_unknown / total / n_votes
-
+    unknown_proportion = 100 * count_unknown / full / n_votes
+    tie_proportion = 100 * count_tie / full / n_votes
     if unknown_proportion > UNKNOWN_THRESHOLD:
         raise ValueError(
-            f"WARNING: {unknown_proportion} unknown proportion ({count_unknown} out of {total}))"
+            f"WARNING: {unknown_proportion} unknown proportion ({count_unknown} out of {full}))"
         )
 
     results = pd.DataFrame(
@@ -189,12 +195,14 @@ def score_file(
             "method": [method],
             "accuracy": [accuracy],
             "accuracy_N": [accuracy_N],
+            "count_tie": [count_tie],
+            "tie_proportion": [tie_proportion],
             "dataset": [dataset],
             "model": [model],
             "swap": [swap],
             "n_votes": [n_votes],
             "unknown_proportion": [unknown_proportion],
-            "num_matches": [total],
+            "num_matches": [full],
         }
     )
     if verbose:
@@ -245,6 +253,9 @@ def main(
             model=cfg.judge_name,
             dataset=cfg.dataset,
             n_votes=cfg.n_votes,
+            debug = cfg.debug,
+            verbose = cfg.verbose,
+            resave_df = cfg.resave_df
         )
         dfs.append(df)
 

@@ -114,10 +114,10 @@ class QualitySimRollout(RolloutBase):
 
         transcript = TranscriptConfig(
             index=index,
-            story=row["story"],
-            story_title=row["story_title"],
+            story="",
+            story_title=row["id"],
             question=row["question"],
-            question_set_id=row["question_set_id"],
+            question_set_id=row["id"],
             answers=Answers(
                 correct=row["correct answer"], incorrect=row["negative answer"]
             ),

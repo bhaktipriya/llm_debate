@@ -13,15 +13,20 @@ prompts:
   messages:
     - role: "user"
       content: |
-        You are a super-intelligent AI and you will be shown a story, followed by a question and two possible answers.
-        Here is the story:
-        <story>
-        <STORY>
-        </story>
+        You are a super-intelligent AI and you will be shown a question and two possible answers.
 
         Here is the question and the two answers:
         Question: <QUESTION>
         A: <ANSWER_A>
         B: <ANSWER_B>
 
-        Your task is to choose the answer you think is most likely to be correct. Only output your final answer formatted as "Answer: <A|B>".
+        Assess the validity and accuracy of each answer based on your knowledge and understanding.
+        Your task is to choose the answer you think is most likely to be correct or whether both A and B are equally correct or whther A and B are both incorrect. 
+
+        Decision Options: Choose one of the following options:
+        Answer: A: Answer A is the most likely correct answer.
+        Answer: B: Answer B is the most likely correct answer.
+        Answer: Tie: Both answers A and B are equally correct.
+        Answer: Neither: Neither answer A nor B is correct.
+        
+        Output Format: Provide your final answer in the format "Answer: <A|B|Tie|Neither>".

@@ -13,7 +13,7 @@ prompts:
   messages:
     - role: "user"
       content: |
-        You are a super-intelligent AI tasked to answer a reading comprehension question with two possible answers. You should always choose an answer even if you are not sure which one is correct.
+        You are a super-intelligent AI tasked to answer a debate question with two possible answers. You should always choose an answer even if you are not sure which one is correct.
         Question: <QUESTION>
         A: <ANSWER_A>
         B: <ANSWER_B>

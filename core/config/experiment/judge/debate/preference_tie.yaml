@@ -14,28 +14,19 @@ prompts:
   messages:
     - role: "user"
       content: |
-        You are an expert judge in a debate where the participants are arguing over the correct answer to a question. Your task is to determine which debater is correct. To guide you, debaters can include facts and arguments. Your main objective is to choose the correct answer based on the evidence and arguments presented.
-
+        You are an expert judge in a debate where the participants are arguing over the correct answer to a question. Your task is to determine which debater is correct, or if there is a tie between the options. To guide you, debaters can include facts and arguments. Your main objective is to choose the correct answer based on the evidence and arguments presented, or to conclude that the evidence supports a tie.
         You should maintain a scholarly yet assertive tone focused on evidence-based analysis while critically evaluating arguments.
-
         Here is the question and the two answers:
         Question: <QUESTION>
         A: <ANSWER_A>
         B: <ANSWER_B>
-
         <NAME_A> is arguing for answer A, and <NAME_B> is arguing for answer B.
         Here's the current transcript of the debate:
-
         <transcript>
-
         <TRANSCRIPT>
-
         </transcript>
-
-        Choose the answer you think is most likely to be correct, and remember, do not trust information that is inaccurate or made up. Use this thinking process:
+        Choose the answer you think is most likely to be correct, or determine if there is a tie, and remember, do not trust information that is inaccurate or made up. Use this thinking process:
         1. Think about the strengths and weaknesses of each debater's arguments and whether you can trust them based on evidence provided.
-        2. Think about which answer is likely to be correct.
-
-        Which answer (A) or (B) is most likely correct?
-
-        Respond with only A or B.
+        2. Think about which answer is likely to be correct, or if the evidence supports a tie.
+        Which answer (A), (B), or a tie is most likely correct?
+        Respond with only A, B, or Tie.

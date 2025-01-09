@@ -126,7 +126,7 @@ async def async_main(cfg: DictConfig):
 
     exp_dir = Path(cfg.exp_dir)
     exp_dir.mkdir(parents=True, exist_ok=True)
-
+    print(cfg)
     experiment = Experiment(
         exp_dir,
         cfg.method,

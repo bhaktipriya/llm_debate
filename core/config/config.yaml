@@ -63,7 +63,9 @@ round_limit: null
 dataset: "quality"
 n_votes: 1
 results_file_name: "results.csv"
-
+resave_df: True
+verbose: True
+debug: True
 # API
 organization: DEFAULT_ORG
 anthropic_tag: ANTHROPIC_API_KEY
