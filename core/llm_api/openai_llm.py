@@ -12,7 +12,8 @@ import attrs
 import openai
 import requests
 import tiktoken
-from openai.openai_object import OpenAIObject as OpenAICompletion
+from openai.types.chat.chat_completion import ChatCompletion as OpenAICompletion
+from openai import AsyncAzureOpenAI
 from tenacity import retry, stop_after_attempt, wait_fixed
 from termcolor import cprint
 
@@ -36,6 +37,8 @@ def price_per_token(model_id: str) -> tuple[float, float]:
     """
     Returns the (input token, output token) price for the given model id.
     """
+    if model_id == "gpt-4o":
+        prices = 2.5, 10 # 1M tokens
     if model_id == "gpt-4o-mini-2024-07-18":
         prices = 0.150, 0.6
     elif model_id == "gpt-4-1106-preview":
@@ -279,6 +282,7 @@ class OpenAIModel(ModelAPIProtocol):
 
 _GPT_4_MODELS = [
     "gpt-4",
+    "gpt-4o",
     "gpt-4o-mini-2024-07-18",
     "gpt-4-0314",
     "gpt-4-0613",
@@ -363,9 +367,17 @@ class OpenAIChatModel(OpenAIModel):
         if "logprobs" in params:
             params["top_logprobs"] = params["logprobs"]
             params["logprobs"] = True
-
+        client = AsyncAzureOpenAI(api_key=os.getenv("OAI_gpt4o"),
+        api_version = "2024-06-01", 
+        azure_endpoint="https://azure-services-fair-openai1-northcentralus.azure-api.net")
         api_start = time.time()
-        api_response: OpenAICompletion = await openai.ChatCompletion.acreate(messages=prompt, model=model_id, organization=self.organization, **params)  # type: ignore
+        #print(params, model_id)
+        api_response: OpenAICompletion = await client.chat.completions.create(
+            model=model_id,
+            messages=prompt,
+            **params,
+        )
+        #print(api_response.choices[0].message.content)
         api_duration = time.time() - api_start
         duration = time.time() - start_time
         context_token_cost, completion_token_cost = price_per_token(model_id)
