@@ -79,21 +79,23 @@ def is_human_correct(judgement: str):
     answer = last_line.split(": ")[1]
     return float(answer) > 0.5
 
-
 def func_correct_ab(judgement, swap=False, debug=False):
+    # This stores the extracted verdict from judge.
+    # Correct column is true when it matches answer in correct answer column (majority)
+    # False when it matches answer in incorrect column (minority)
+    # Tie and unknown if it calls a tie or if answer cant be parsed respectively.
     judgement = judgement.strip()
     if len(judgement) > 3:
         if is_human_judgement(judgement):
             return is_human_correct(judgement)
-        if find_answer(judgement, "A"):
+        if find_answer(judgement, "A"): # Majority
             return True if not swap else False
-        elif find_answer(judgement, "B"):
+        elif find_answer(judgement, "B"): # Minority
             return False if not swap else True
         elif find_answer(judgement, "Tie"):
             print("Bhakti this is tie")
             return "Tie"
         elif find_inconclusive(judgement):
-            print("Bhakti this is unknown")
             return "Unknown"
         else:
             if debug:
@@ -130,43 +132,46 @@ def get_accuracy(df, swap, debug=False, n_votes=1, verbose=False):
     df = fix_df_nvotes(df)
     for n_vote in range(n_votes):
         n_vote = n_vote if n_vote > 0 else ""
-        complete_column = f"complete_judge{n_vote}"
-        judge_column = f"answer_judge{n_vote}"
+        complete_column = f"complete_judge{n_vote}" 
+        judge_column = f"answer_judge{n_vote}" # complete answer from judge
         correct_column = f"correct{n_vote}"
         correct_columns.append(correct_column)
         df = get_complete_rows(df, complete_column)
         df[correct_column] = df[judge_column].apply(
-            func_correct_ab, swap=swap, debug=debug
+            func_correct_ab, swap=swap, debug=debug 
         )
         if verbose:
             accuracy = (df[correct_column] == True).sum() / full
             print(f"Accuracy {n_vote}: {accuracy}")
     df_tmp = df.copy()
-    df_tmp["correct_true_count"] = df_tmp[correct_columns].apply(
-        lambda row: (row == True).sum(), axis=1
-    )
-    df_tmp["correct_false_count"] = df_tmp[correct_columns].apply(
-        lambda row: (row == False).sum(), axis=1
-    )
+    # These correct and incorrect metrics don't make much sense for us as we dont have a right answer.
+    # df_tmp["correct_true_count"] = df_tmp[correct_columns].apply(
+    #     lambda row: (row == True).sum(), axis=1
+    # )
+    # df_tmp["correct_false_count"] = df_tmp[correct_columns].apply(
+    #     lambda row: (row == False).sum(), axis=1
+    # )
     df_tmp["correct_tie_count"] = df_tmp[correct_columns].apply(
         lambda row: (row == "Tie").sum(), axis=1
     )
+    df_tmp["correct_stance_count"] = df_tmp[correct_columns].apply(
+    lambda row: ((row == True) | (row == False)).sum(), axis=1
+    ) # Either way majority/minority a stance is a stance as long as it is not unknown or tie.
     df_tmp["correct_unknown_count"] = df_tmp[correct_columns].apply(
         lambda row: (row == "Unknown").sum(), axis=1
     )
-    df_tmp["correct_voted"] = (
-        df_tmp["correct_true_count"] > df_tmp["correct_false_count"]
-    )
+    # df_tmp["correct_voted"] = (
+    #     df_tmp["correct_true_count"] > df_tmp["correct_false_count"]  # Majority > Minority
+    # )
     count_unknown = df_tmp["correct_unknown_count"].sum()
     count_tie = df_tmp["correct_tie_count"].sum()
-    count_tie_percent = count_tie/full
-    accuracy = (df_tmp["correct_voted"] == True).sum() / full
-    accuracy_N = df_tmp.groupby("question")["correct_voted"].all().mean()
-    
-    print(f"Unknown count: {count_unknown}")
-    print(f"Tie count: {count_tie}")
-    print(f"Tie count percent: {count_tie_percent}")
-    return accuracy, accuracy_N, count_unknown, count_tie, full, df
+    count_stance = df_tmp["correct_stance_count"].sum()
+    # majority_count = (df_tmp["correct_true_count"] == True).sum()
+    # minority_count = (df_tmp["correct_false_count"] == False).sum()
+    # accuracy = majority_count / full
+    # accuracy_N = df_tmp.groupby("question")["correct_voted"].all().mean()
+    #return accuracy, accuracy_N, count_unknown, count_tie, full, df, majority_count, minority_count
+    return count_tie, count_stance, count_unknown, full, df
 
 def score_file(
     filename: Path,
@@ -180,11 +185,13 @@ def score_file(
     debug: bool = False,
     n_votes: int = 1,
 ):
-    accuracy, accuracy_N, count_unknown, count_tie, full, df = get_accuracy(
+    count_tie, count_stance, count_unknown, full, df  = get_accuracy(
         filename, swap, debug=debug, n_votes=n_votes, verbose=verbose
     )
+     # TODO test this whole block when n_votes>1.
     unknown_proportion = 100 * count_unknown / full / n_votes
     tie_proportion = 100 * count_tie / full / n_votes
+    stance_proportion = 100 * count_stance/ full / n_votes
     if unknown_proportion > UNKNOWN_THRESHOLD:
         raise ValueError(
             f"WARNING: {unknown_proportion} unknown proportion ({count_unknown} out of {full}))"
@@ -193,10 +200,12 @@ def score_file(
     results = pd.DataFrame(
         {
             "method": [method],
-            "accuracy": [accuracy],
-            "accuracy_N": [accuracy_N],
-            "count_tie": [count_tie],
             "tie_proportion": [tie_proportion],
+            "stance_proportion": [stance_proportion],
+            "unknown_proportion": [unknown_proportion],
+            "tie_count": [count_tie],
+            "stance_count": [count_stance],
+            "unknown_count": [count_unknown],
             "dataset": [dataset],
             "model": [model],
             "swap": [swap],
@@ -212,9 +221,11 @@ def score_file(
             print(f"Appending to {results_file}")
             results.to_csv(results_file, mode="a", header=False, index=False)
         else:
+            print(f"Writing to {results_file}")
             results.to_csv(results_file, mode="w", header=True, index=False)
     if resave_df:
         df.to_csv(filename, index=False)
+        print(f"SAVED DF to {filename}")
     return results
 
 
@@ -270,15 +281,16 @@ def main(
 
     if verbose:
         print(df.to_markdown())
-    df.to_csv(results_file, mode="a", index=False)
+    df.to_csv(results_file, mode="w", index=False) # Should this be in append mode?
+    print(f"Saved ALL results to {results_file}")
+    # both ways
+    print(f"overall tie count: {df['tie_count'].sum()}")
+    print(f"overall stance_count: {df['stance_count'].sum()}")
+    print(f"overall unknown_count: {df['unknown_count'].sum()}")
+    print(f"overall matches: {df['num_matches'].sum()}")
+    # TODO add an overall metric for decisiveness, does the verdict change when order is swapped
 
-    df["wins"] = df["accuracy"] * df["num_matches"]
-    df["wins"] = df["wins"].astype(int)
-    wins_for_correct = df["wins"].sum()
-    wins_for_incorrect = df["num_matches"].sum() - wins_for_correct
-    print(f"wins for correct: {wins_for_correct}")
-    print(f"wins for incorrect: {wins_for_incorrect}")
-    return wins_for_correct, wins_for_incorrect
+    return df['tie_count'],df['stance_count'],df['unknown_count']
 
 
 if __name__ == "__main__":
