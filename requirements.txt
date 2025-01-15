@@ -7,7 +7,7 @@ fastapi==0.100.0
 fire
 hydra-core
 matplotlib
-openai==0.28.0
+openai
 pandas
 polars
 pre-commit
@@ -26,3 +26,4 @@ trueskill
 typer[all]
 uvicorn[standard]==0.22.0
 wandb
+ipykernel
